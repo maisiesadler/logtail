@@ -16,12 +16,11 @@ func Run(file string) {
   done := make(chan bool)
   var wg sync.WaitGroup
 
-  wg.Add(2)
+  wg.Add(1)
 
   r := reader(file)
   readUntilEof(r)
   go WatchFile(file, notify, done)
-  go appendFile(&wg, file)
   go func() {
     defer wg.Done()
     for _ = range notify {
@@ -90,7 +89,7 @@ func WatchFile(file string, notify chan<- bool, done <-chan bool) {
   <-done
 }
 
-func appendFile(wg *sync.WaitGroup, filename string) {
+func AppendFile(wg *sync.WaitGroup, filename string) {
   defer wg.Done()
   f, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, 0600)
   if err != nil {
