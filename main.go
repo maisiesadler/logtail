@@ -1,4 +1,4 @@
-package main
+package logtail
 
 import (
   "log"
@@ -11,14 +11,13 @@ import (
   "github.com/fsnotify/fsnotify"
 )
 
-func main() {
+func Run(file string) {
   notify := make(chan bool)
   done := make(chan bool)
   var wg sync.WaitGroup
 
   wg.Add(2)
 
-  file := "test.log"
   r := reader(file)
   readUntilEof(r)
   go WatchFile(file, notify, done)
