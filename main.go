@@ -7,11 +7,21 @@ import (
   "fmt"
   "sync"
   "strconv"
+  "io"
 
   "github.com/fsnotify/fsnotify"
 )
 
-func Run(file string) {
+type FmtWriter struct {
+  io.Writer
+}
+
+func (f *FmtWriter) Write(data []byte) (n int, err error) {
+  fmt.Println(string(data))
+  return 0, nil
+}
+
+func Run(file string, w io.Writer) {
   notify := make(chan bool)
   done := make(chan bool)
   var wg sync.WaitGroup
@@ -19,12 +29,12 @@ func Run(file string) {
   wg.Add(1)
 
   r := reader(file)
-  readUntilEof(r)
+  readUntilEof(r, w)
   go WatchFile(file, notify, done)
   go func() {
     defer wg.Done()
     for _ = range notify {
-      readUntilEof(r)
+      readUntilEof(r, w)
     }
   }()
   wg.Wait()
@@ -39,14 +49,16 @@ func reader(filename string) *bufio.Reader {
   return r
 }
 
-func readUntilEof(r *bufio.Reader) {
+func readUntilEof(r *bufio.Reader, w io.Writer) {
   _, err := r.Peek(1)
   for err == nil {
-    token, isPrefix, lineerr := r.ReadLine()
+    token, _, lineerr := r.ReadLine()
     if lineerr != nil {
         panic(lineerr)
     }
-    fmt.Printf("Token: %q, prefix: %t\n", token, isPrefix)
+    w.Write(token)
+    // todo: isPrefix?
+//     fmt.Printf("Token: %q, prefix: %t\n", token, isPrefix)
     _, err = r.Peek(1)
   }
   if err != nil {
