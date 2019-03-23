@@ -6,8 +6,8 @@ import (
   "bufio"
   "fmt"
   "sync"
-  "strconv"
   "io"
+  "regexp"
 
   "github.com/fsnotify/fsnotify"
 )
@@ -18,6 +18,33 @@ type FmtWriter struct {
 
 func (f *FmtWriter) Write(data []byte) (n int, err error) {
   fmt.Println(string(data))
+  return 0, nil
+}
+
+type Filter interface {
+  Pass(data []byte) (bool, []byte)
+}
+
+type RegexFilter struct {
+  R *regexp.Regexp
+}
+
+func (rf *RegexFilter) Pass(data []byte) (bool, []byte) {
+  if (rf.R.Match(data)) {
+    return true, data
+  }
+  return false, []byte{}
+}
+
+type FilteredWriter struct {
+  W io.Writer
+  F Filter
+}
+
+func (w *FilteredWriter) Write(data []byte) (n int, err error) {
+  if ok, d := w.F.Pass(data); ok {
+    return w.W.Write(d)
+  }
   return 0, nil
 }
 
@@ -57,12 +84,10 @@ func readUntilEof(r *bufio.Reader, w io.Writer) {
         panic(lineerr)
     }
     w.Write(token)
-    // todo: isPrefix?
-//     fmt.Printf("Token: %q, prefix: %t\n", token, isPrefix)
     _, err = r.Peek(1)
   }
-  if err != nil {
-    fmt.Println(err)
+  if err != nil && err != io.EOF {
+    log.Println(err)
   }
 }
 
@@ -80,10 +105,8 @@ func WatchFile(file string, notify chan<- bool, done <-chan bool) {
         if !ok {
           return
         }
-        log.Println("event:", event)
         if event.Op&fsnotify.Write == fsnotify.Write {
           notify <- true
-          log.Println("modified file:", event.Name)
         }
       case err, ok := <-watcher.Errors:
         if !ok {
@@ -99,19 +122,4 @@ func WatchFile(file string, notify chan<- bool, done <-chan bool) {
     log.Fatal(err)
   }
   <-done
-}
-
-func AppendFile(wg *sync.WaitGroup, filename string) {
-  defer wg.Done()
-  f, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, 0600)
-  if err != nil {
-      panic(err)
-  }
-  defer f.Close()
-  for i := 0; i < 1000; i++ {
-    text := "testing" + strconv.Itoa(i) + "\n"
-    if _, err = f.WriteString(text); err != nil {
-      panic(err)
-    }
-  }
 }
