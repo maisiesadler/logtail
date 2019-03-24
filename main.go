@@ -12,7 +12,8 @@ import (
   "github.com/fsnotify/fsnotify"
 )
 
-func Run(done <-chan bool, file string, w io.Writer) {
+func Run(file string, w io.Writer) {
+  done := make(chan bool)
   notify := make(chan bool)
   var wg sync.WaitGroup
 
