@@ -12,6 +12,24 @@ import (
   "github.com/fsnotify/fsnotify"
 )
 
+func Run(done <-chan bool, file string, w io.Writer) {
+  notify := make(chan bool)
+  var wg sync.WaitGroup
+
+  wg.Add(1)
+
+  r := reader(file)
+  readUntilEof(r, w)
+  go watchFile(file, notify, done)
+  go func() {
+    defer wg.Done()
+    for _ = range notify {
+      readUntilEof(r, w)
+    }
+  }()
+  wg.Wait()
+}
+
 type FmtWriter struct {
   io.Writer
 }
@@ -48,23 +66,17 @@ func (w *FilteredWriter) Write(data []byte) (n int, err error) {
   return 0, nil
 }
 
-func Run(file string, w io.Writer) {
-  notify := make(chan bool)
-  done := make(chan bool)
-  var wg sync.WaitGroup
+type ChannelWriter struct {
+  updates chan string
+}
 
-  wg.Add(1)
+func (w *ChannelWriter) Write(data []byte) (n int, err error) {
+  w.updates <- string(data)
+  return 0, nil
+}
 
-  r := reader(file)
-  readUntilEof(r, w)
-  go WatchFile(file, notify, done)
-  go func() {
-    defer wg.Done()
-    for _ = range notify {
-      readUntilEof(r, w)
-    }
-  }()
-  wg.Wait()
+func (w *ChannelWriter) Updates() <-chan string {
+  return w.updates
 }
 
 func reader(filename string) *bufio.Reader {
@@ -91,7 +103,7 @@ func readUntilEof(r *bufio.Reader, w io.Writer) {
   }
 }
 
-func WatchFile(file string, notify chan<- bool, done <-chan bool) {
+func watchFile(file string, notify chan<- bool, done <-chan bool) {
   watcher, err := fsnotify.NewWatcher()
   if err != nil {
     log.Fatal(err)
