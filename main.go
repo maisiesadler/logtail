@@ -4,26 +4,27 @@ import (
   "log"
   "os"
   "bufio"
-  "sync"
   "io"
   "time"
 )
 
-func Run(file string, w io.Writer) {
-  var wg sync.WaitGroup
-
-  wg.Add(1)
+func Run(file string, w io.Writer) chan<- bool {
   ticker := time.NewTicker(500 * time.Millisecond)
 
   r := reader(file)
   readUntilEof(r, w)
   go func() {
-    defer wg.Done()
     for _ = range ticker.C {
       readUntilEof(r, w)
     }
   }()
-  wg.Wait()
+
+  done := make(chan bool)
+  go func() {
+    <-done
+    ticker.Stop()
+  }()
+  return done
 }
 
 func reader(filename string) *bufio.Reader {
