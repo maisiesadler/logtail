@@ -8,23 +8,20 @@ import (
   "sync"
   "io"
   "regexp"
-
-  "github.com/fsnotify/fsnotify"
+  "time"
 )
 
 func Run(file string, w io.Writer) {
-  done := make(chan bool)
-  notify := make(chan bool)
   var wg sync.WaitGroup
 
   wg.Add(1)
+  ticker := time.NewTicker(500 * time.Millisecond)
 
   r := reader(file)
   readUntilEof(r, w)
-  go watchFile(file, notify, done)
   go func() {
     defer wg.Done()
-    for _ = range notify {
+    for _ = range ticker.C {
       readUntilEof(r, w)
     }
   }()
@@ -108,35 +105,3 @@ func readUntilEof(r *bufio.Reader, w io.Writer) {
   }
 }
 
-func watchFile(file string, notify chan<- bool, done <-chan bool) {
-  watcher, err := fsnotify.NewWatcher()
-  if err != nil {
-    log.Fatal(err)
-  }
-  defer watcher.Close()
-
-  go func() {
-    for {
-      select {
-      case event, ok := <-watcher.Events:
-        if !ok {
-          return
-        }
-        if event.Op&fsnotify.Write == fsnotify.Write {
-          notify <- true
-        }
-      case err, ok := <-watcher.Errors:
-        if !ok {
-          return
-        }
-        log.Println("error:", err)
-      }
-    }
-  }()
-
-  err = watcher.Add(file)
-  if err != nil {
-    log.Fatal(err)
-  }
-  <-done
-}
