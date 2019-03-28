@@ -10,8 +10,8 @@ type SummaryWriter struct {
   Summary *Summary
 }
 
-func NewSummaryWriter() *SummaryWriter {
-  summary := &Summary{linecount: make(map[string]int)}
+func NewSummaryWriter(r *regexp.Regexp) *SummaryWriter {
+  summary := &Summary{linecount: make(map[string]int), r: r}
   return &SummaryWriter{make(chan bool), summary}
 }
 
@@ -28,6 +28,7 @@ func (w *SummaryWriter) Updates() <-chan bool {
 
 type Summary struct {
   sync.RWMutex
+  r *regexp.Regexp
   linecount map[string]int
 }
 
@@ -37,7 +38,7 @@ type LineAndCount struct {
 }
 
 func (s *Summary) Add(l string) bool {
-  if matched, _ := regexp.MatchString("testing122", l); matched {
+  if matched := s.r.MatchString(l); matched {
     s.Lock()
     s.linecount[l]++
     s.Unlock()
