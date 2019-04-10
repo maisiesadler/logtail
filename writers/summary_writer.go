@@ -33,8 +33,8 @@ type Summary struct {
 }
 
 type LineAndCount struct {
-  Line string
-  Count int
+  Line string `json:"line"`
+  Count int `json:"count"`
 }
 
 func (s *Summary) Add(l string) bool {
