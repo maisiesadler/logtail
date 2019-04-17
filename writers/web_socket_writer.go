@@ -9,14 +9,16 @@ import (
 )
 
 type WebSocketWriter struct {
+  port int
+  endpoint string
   subscribers []chan string
   latest []string
   mux *sync.RWMutex
 }
 
-func NewWebSocketWriter() *WebSocketWriter {
+func NewWebSocketWriter(port int, endpoint string) *WebSocketWriter {
   updates := []chan string{}
-  return &WebSocketWriter{updates, []string{}, &sync.RWMutex{}}
+  return &WebSocketWriter{port, endpoint, updates, []string{}, &sync.RWMutex{}}
 }
 
 func (w *WebSocketWriter) Write(data []byte) (n int, err error) {
@@ -24,11 +26,6 @@ func (w *WebSocketWriter) Write(data []byte) (n int, err error) {
   fmt.Println("sending " + s, len(w.subscribers))
   w.mux.Lock()
   w.latest = append(w.latest, s)
-  if len(w.latest) > 3 {
-    fmt.Println("OBLA" + w.latest[len(w.latest) - 3])
-    fmt.Println("LAST" + w.latest[len(w.latest) - 2])
-    fmt.Println("CURR" + w.latest[len(w.latest) - 1])
-  }
   w.mux.Unlock()
   for _, subs := range w.subscribers {
     subs <- s
