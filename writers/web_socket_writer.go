@@ -3,6 +3,7 @@ package writers
 import (
   "fmt"
   "net/http"
+  "strconv"
   "sync"
 
   "github.com/gorilla/websocket"
@@ -34,7 +35,7 @@ func (w *WebSocketWriter) Write(data []byte) (n int, err error) {
 }
 
 func (w *WebSocketWriter) Start() {
-  http.HandleFunc("/echo", func(res http.ResponseWriter, req *http.Request) {
+  http.HandleFunc("/" + w.endpoint, func(res http.ResponseWriter, req *http.Request) {
     conn, error := (&websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}).Upgrade(res, req, nil)
     if error != nil {
       http.NotFound(res, req)
@@ -42,7 +43,7 @@ func (w *WebSocketWriter) Start() {
     }
     go subscribe(w, conn)
   })
-  http.ListenAndServe(":8080", nil)
+  http.ListenAndServe(":" + strconv.Itoa(w.port), nil)
   fmt.Println("Listening")
 }
 
